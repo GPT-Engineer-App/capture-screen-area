@@ -1,0 +1,73 @@
+import os
+import time
+from datetime import datetime
+from PIL import Image
+import pyautogui
+import pytesseract
+from openpyxl import Workbook
+from reportlab.pdfgen import canvas
+
+# Ensure the directory exists
+output_dir = "d/tmig"
+os.makedirs(output_dir, exist_ok=True)
+
+# Define the region to capture (left, top, width, height)
+region = (100, 100, 800, 600)  # Adjust these values as needed
+
+def capture_screen(region):
+    screenshot = pyautogui.screenshot(region=region)
+    return screenshot
+
+def save_image(image, base_filename):
+    jpeg_path = os.path.join(output_dir, f"{base_filename}.jpeg")
+    png_path = os.path.join(output_dir, f"{base_filename}.png")
+    pdf_path = os.path.join(output_dir, f"{base_filename}.pdf")
+
+    image.save(jpeg_path, "JPEG")
+    image.save(png_path, "PNG")
+
+    # Save as PDF
+    c = canvas.Canvas(pdf_path)
+    c.drawImage(jpeg_path, 0, 0, image.width, image.height)
+    c.save()
+
+    return jpeg_path, png_path, pdf_path
+
+def perform_ocr(image_path):
+    text = pytesseract.image_to_string(Image.open(image_path))
+    return text
+
+def save_text_to_excel(texts, base_filename):
+    excel_path = os.path.join(output_dir, f"{base_filename}.xlsx")
+    wb = Workbook()
+    ws = wb.active
+
+    for i, text in enumerate(texts, start=1):
+        ws[f"A{i}"] = text
+
+    wb.save(excel_path)
+
+def main():
+    while True:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        base_filename = f"capture_{timestamp}"
+
+        # Capture the screen
+        screenshot = capture_screen(region)
+
+        # Save the image in different formats
+        jpeg_path, png_path, pdf_path = save_image(screenshot, base_filename)
+
+        # Perform OCR on the images
+        jpeg_text = perform_ocr(jpeg_path)
+        png_text = perform_ocr(png_path)
+        pdf_text = perform_ocr(pdf_path)
+
+        # Save the extracted text to an Excel file
+        save_text_to_excel([jpeg_text, png_text, pdf_text], base_filename)
+
+        # Wait for 10 seconds before capturing the next image
+        time.sleep(10)
+
+if __name__ == "__main__":
+    main()
